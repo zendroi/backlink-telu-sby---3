@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AppShell } from "@/components/shell";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function CommentsPage() {
   const comments = await prisma.generatedComment.findMany({
     orderBy: { createdAt: "desc" },

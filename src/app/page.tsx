@@ -4,6 +4,8 @@ import { AppShell } from "@/components/shell";
 import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const user = await getDefaultUser();
   const latestProject = await prisma.searchProject.findFirst({

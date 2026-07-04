@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:railway": "prisma generate --schema prisma/schema.railway.prisma && next build",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
+    "prisma:deploy:railway": "prisma db push --schema prisma/schema.railway.prisma",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",

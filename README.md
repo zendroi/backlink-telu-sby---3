@@ -83,3 +83,10 @@ Aturan utamanya:
 - Tambahkan export CSV hasil kandidat dan komentar
 - Pindahkan background search ke worker queue sebelum deploy serverless
 - Tambahkan tombol re-check kandidat dan cancel job
+
+## Deploy Railway
+
+Project mempertahankan SQLite untuk development lokal dan menggunakan
+`prisma/schema.railway.prisma` untuk PostgreSQL production. Railway membaca
+`railway.json`, menjalankan build production, lalu membuat tabel PostgreSQL
+melalui pre-deploy command sebelum aplikasi dimulai.
