@@ -32,6 +32,8 @@ const statements = [
     keyword TEXT NOT NULL,
     targetDomain TEXT NOT NULL,
     userWebsiteUrl TEXT NOT NULL,
+    userWebsiteTitle TEXT,
+    userWebsiteSummary TEXT,
     status TEXT NOT NULL DEFAULT 'active',
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -65,6 +67,10 @@ const statements = [
     notes TEXT,
     searchQuery TEXT,
     snippet TEXT,
+    inspectionStatus TEXT NOT NULL DEFAULT 'pending',
+    relevanceScore INTEGER NOT NULL DEFAULT 0,
+    inspectionReason TEXT,
+    inspectedAt DATETIME,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT CandidateWebsite_projectId_fkey FOREIGN KEY (projectId) REFERENCES SearchProject (id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -77,6 +83,7 @@ const statements = [
     url TEXT NOT NULL,
     summary TEXT NOT NULL,
     relevanceReason TEXT NOT NULL,
+    relevanceScore INTEGER NOT NULL DEFAULT 0,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT TelkomArticle_projectId_fkey FOREIGN KEY (projectId) REFERENCES SearchProject (id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -89,6 +96,7 @@ const statements = [
     generatedComment TEXT NOT NULL,
     suggestedAnchorText TEXT NOT NULL,
     ethicalNote TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'unknown',
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT GeneratedComment_candidateWebsiteId_fkey FOREIGN KEY (candidateWebsiteId) REFERENCES CandidateWebsite (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT GeneratedComment_telkomArticleId_fkey FOREIGN KEY (telkomArticleId) REFERENCES TelkomArticle (id) ON DELETE SET NULL ON UPDATE CASCADE

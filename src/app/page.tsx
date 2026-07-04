@@ -11,11 +11,7 @@ export default async function HomePage() {
     orderBy: { createdAt: "desc" },
     include: {
       candidates: {
-        where: {
-          hasCommentForm: true,
-          hasWebsiteField: true
-        },
-        orderBy: [{ hasWebsiteField: "desc" }, { hasCommentForm: "desc" }, { createdAt: "desc" }]
+        orderBy: [{ relevanceScore: "desc" }, { createdAt: "desc" }]
       }
     }
   });

@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { generateSeoComment } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
-import { ensureRelevantTelkomArticles, selectBestTelkomArticle } from "@/lib/telkom-articles";
+import { selectBestTelkomArticle } from "@/lib/telkom-articles";
+
+const GenerateSchema = z.object({ telkomArticleId: z.number().int().positive().optional() });
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ candidateId: string }> }
 ) {
   const { candidateId } = await context.params;
@@ -24,6 +27,9 @@ export async function POST(
     return NextResponse.json({ error: "Kandidat tidak ditemukan." }, { status: 404 });
   }
 
+  const parsed = GenerateSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return NextResponse.json({ error: "Pilihan artikel tidak valid." }, { status: 400 });
+
   const candidateContext = [
     candidate.title,
     candidate.snippet,
@@ -31,12 +37,6 @@ export async function POST(
   ]
     .filter(Boolean)
     .join(" ");
-
-  await ensureRelevantTelkomArticles({
-    projectId: candidate.projectId,
-    keyword: candidate.project.keyword,
-    context: candidateContext
-  }).catch(() => []);
 
   const telkomArticles = await prisma.telkomArticle.findMany({
     where: { projectId: candidate.projectId },
@@ -48,20 +48,28 @@ export async function POST(
     orderBy: { createdAt: "desc" }
   });
 
-  const telkomArticle = selectBestTelkomArticle(
-    telkomArticles,
-    candidate.project.keyword,
-    candidateContext
-  );
-  const generated = await generateSeoComment({
-    keyword: candidate.project.keyword,
-    candidateUrl: candidate.url,
-    candidateTitle: candidate.title,
-    userWebsiteUrl: candidate.project.userWebsiteUrl,
-    telkomTitle: telkomArticle?.title,
-    telkomUrl: telkomArticle?.url,
-    telkomSummary: telkomArticle?.summary
-  });
+  const telkomArticle = parsed.data.telkomArticleId
+    ? telkomArticles.find((article) => article.id === parsed.data.telkomArticleId)
+    : selectBestTelkomArticle(telkomArticles, candidate.project.keyword, candidateContext);
+  if (!telkomArticle) return NextResponse.json({
+    error: "Belum ada artikel Telkom yang cukup relevan. Pilih atau cari artikel lain terlebih dahulu."
+  }, { status: 422 });
+
+  let generated;
+  try {
+    generated = await generateSeoComment({
+      keyword: candidate.project.keyword, candidateUrl: candidate.url,
+      candidateTitle: candidate.title, targetSummary: candidate.snippet || "",
+      userWebsiteUrl: candidate.project.userWebsiteUrl,
+      userWebsiteTitle: candidate.project.userWebsiteTitle || undefined,
+      userWebsiteSummary: candidate.project.userWebsiteSummary || undefined,
+      telkomTitle: telkomArticle.title, telkomUrl: telkomArticle.url,
+      telkomSummary: telkomArticle.summary
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Generate komentar gagal." },
+      { status: 502 });
+  }
 
   const comment = await prisma.generatedComment.create({
     data: {
@@ -69,7 +77,8 @@ export async function POST(
       telkomArticleId: telkomArticle?.id,
       generatedComment: generated.generatedComment,
       suggestedAnchorText: generated.suggestedAnchorText,
-      ethicalNote: generated.ethicalNote
+      ethicalNote: generated.ethicalNote,
+      provider: generated.provider
     },
     include: {
       telkomArticle: true

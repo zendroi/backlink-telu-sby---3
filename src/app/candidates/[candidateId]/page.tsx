@@ -17,7 +17,7 @@ export default async function CandidatePage({
   const candidate = await prisma.candidateWebsite.findUnique({
     where: { id },
     include: {
-      project: true,
+      project: { include: { articles: { orderBy: { relevanceScore: "desc" } } } },
       comments: {
         orderBy: { createdAt: "desc" },
         include: { telkomArticle: true }
@@ -43,7 +43,7 @@ export default async function CandidatePage({
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <div className="card p-4">
             <span className="text-sm text-muted">Ada form komentar</span>
             <strong className="mt-2 block text-2xl">
@@ -60,11 +60,16 @@ export default async function CandidatePage({
             <span className="text-sm text-muted">Domain</span>
             <strong className="mt-2 block text-2xl">{candidate.domain || "-"}</strong>
           </div>
+          <div className="card p-4">
+            <span className="text-sm text-muted">Pemeriksaan otomatis</span>
+            <strong className="mt-2 block text-lg capitalize">{candidate.inspectionStatus}</strong>
+            <p className="mt-1 text-xs text-muted">{candidate.inspectionReason || "Belum diperiksa."}</p>
+          </div>
         </section>
 
         <section className="card grid gap-4 p-5">
           <h2 className="text-xl font-black">Aksi</h2>
-          <CandidateActions candidateId={candidate.id} />
+          <CandidateActions candidateId={candidate.id} articles={candidate.project.articles} />
           <NotesForm candidateId={candidate.id} initialNotes={candidate.notes || ""} />
         </section>
 

@@ -1,163 +1,101 @@
-import { inspectPage } from "@/lib/page-inspector";
+import { z } from "zod";
 
-export type GeneratedCommentPayload = {
-  generatedComment: string;
-  suggestedAnchorText: string;
-  ethicalNote: string;
+const CommentSchema = z.object({
+  generatedComment: z.string().min(1),
+  suggestedAnchorText: z.string().min(1),
+  ethicalNote: z.string().min(1)
+});
+
+export type GeneratedCommentPayload = z.infer<typeof CommentSchema> & { provider: string };
+export type GenerateCommentInput = {
+  keyword: string; candidateUrl: string; candidateTitle: string; targetSummary: string;
+  userWebsiteUrl: string; userWebsiteTitle?: string; userWebsiteSummary?: string;
+  telkomTitle: string; telkomUrl: string; telkomSummary: string;
 };
 
-type GenerateCommentInput = {
-  keyword: string;
-  candidateUrl: string;
-  candidateTitle: string;
-  userWebsiteUrl: string;
-  telkomTitle?: string;
-  telkomUrl?: string;
-  telkomSummary?: string;
-};
+function buildPrompt(input: GenerateCommentInput) {
+  return `Buat satu komentar blog berbahasa Indonesia berdasarkan fakta yang tersedia.
 
-function fallbackComment(input: GenerateCommentInput): GeneratedCommentPayload {
-  return {
-    generatedComment:
-      `Pembahasan tentang ${input.keyword} di artikel ini cukup nyambung dengan kebutuhan pembaca yang sedang mencari referensi praktis. Saya suka bagian yang menekankan konteks penerapannya, karena topik seperti ini sering terasa terlalu teknis kalau tidak diberi contoh. Sebagai tambahan, ada juga referensi terkait dari Telkom University Surabaya yang bisa jadi sudut pandang pelengkap: ${input.telkomUrl || input.userWebsiteUrl}`,
-    suggestedAnchorText: input.keyword,
-    ethicalNote:
-      "Review komentar sebelum dipakai. Jangan kirim jika tidak relevan dengan isi artikel atau melanggar aturan website tujuan."
-  };
+HALAMAN YANG DIKOMENTARI
+Judul: ${input.candidateTitle}
+URL: ${input.candidateUrl}
+Ringkasan: ${input.targetSummary || "Tidak tersedia"}
+
+REFERENSI TELKOM UNIVERSITY SURABAYA
+Topik project: ${input.keyword}
+Judul: ${input.telkomTitle}
+URL: ${input.telkomUrl}
+Ringkasan: ${input.telkomSummary}
+Halaman yang dipromosikan: ${input.userWebsiteTitle || input.userWebsiteUrl}
+Konteks halaman: ${input.userWebsiteSummary || "Tidak tersedia"}
+
+ATURAN WAJIB
+- Tulis 80 sampai 120 kata, natural, spesifik terhadap ringkasan halaman target, dan sopan.
+- Jangan mengaku pernah mencoba, meneliti, atau mengalami sesuatu yang tidak disebutkan.
+- Jangan memakai keyword berulang, bahasa promosi, ajakan membeli, atau pujian generik.
+- Referensikan artikel Telkom hanya jika memperkaya pembahasan; maksimal satu URL.
+- Anchor text harus deskriptif dan bukan exact-match keyword yang dipaksakan.
+- Kembalikan JSON valid: generatedComment, suggestedAnchorText, ethicalNote.`;
 }
 
-function buildPrompt(input: GenerateCommentInput, targetSummary: string) {
-  return `
-Buat komentar blog berbahasa Indonesia untuk backlink outreach yang etis.
-
-Konteks target:
-- Keyword/topik: ${input.keyword}
-- Judul halaman target: ${input.candidateTitle}
-- URL target: ${input.candidateUrl}
-- Ringkasan halaman target: ${targetSummary || "-"}
-
-Sumber resmi:
-- Domain Universitas Telkom Surabaya: ${input.userWebsiteUrl}
-
-Artikel Telkom University Surabaya yang relevan:
-- Judul: ${input.telkomTitle || "-"}
-- URL: ${input.telkomUrl || "-"}
-- Ringkasan: ${input.telkomSummary || "-"}
-
-Aturan:
-- Komentar natural, sopan, relevan, dan tidak terlihat spam.
-- Jangan keyword stuffing.
-- Jangan klaim palsu seperti "saya sudah memakai" jika tidak ada konteks.
-- Jangan terlalu promosi.
-- 80-120 kata.
-- Boleh menyisipkan satu referensi/link artikel Telkom secara halus jika relevan.
-- Output harus JSON valid dengan field:
-  generatedComment, suggestedAnchorText, ethicalNote.
-`.trim();
+function parseContent(content: string, provider: string): GeneratedCommentPayload {
+  const match = content.match(/\{[\s\S]*\}/);
+  const parsed = CommentSchema.parse(JSON.parse(match?.[0] || content));
+  const words = parsed.generatedComment.trim().split(/\s+/);
+  if (words.length < 80) throw new Error(`${provider} menghasilkan komentar kurang dari 80 kata.`);
+  return { ...parsed, generatedComment: words.slice(0, 120).join(" "), provider };
 }
 
-function normalizeGeneratedComment(
-  parsed: Partial<GeneratedCommentPayload>,
-  input: GenerateCommentInput
-): GeneratedCommentPayload {
-  return {
-    generatedComment: parsed.generatedComment || fallbackComment(input).generatedComment,
-    suggestedAnchorText: parsed.suggestedAnchorText || input.keyword,
-    ethicalNote:
-      parsed.ethicalNote ||
-      "Pastikan komentar sesuai isi artikel dan aturan website tujuan."
-  };
-}
-
-async function callOpenAI(prompt: string, input: GenerateCommentInput) {
+async function callOpenAI(prompt: string) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
-
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Anda adalah asisten SEO etis. Anda membuat draft komentar yang relevan, manusiawi, dan tidak spam."
-        },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.55,
-      response_format: { type: "json_object" }
-    })
+      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      messages: [{ role: "system", content: "Anda editor komentar SEO etis. Gunakan hanya konteks yang diberikan." },
+        { role: "user", content: prompt }],
+      temperature: 0.35,
+      response_format: { type: "json_schema", json_schema: { name: "ethical_comment", strict: true,
+        schema: { type: "object", additionalProperties: false,
+          required: ["generatedComment", "suggestedAnchorText", "ethicalNote"],
+          properties: { generatedComment: { type: "string" }, suggestedAnchorText: { type: "string" },
+            ethicalNote: { type: "string" } } } } }
+    }),
+    signal: AbortSignal.timeout(25000)
   });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI gagal: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`OpenAI gagal (${response.status}).`);
   const payload = await response.json();
-  const content = payload.choices?.[0]?.message?.content;
-  const parsed = JSON.parse(content) as GeneratedCommentPayload;
-  return normalizeGeneratedComment(parsed, input);
+  return parseContent(payload.choices?.[0]?.message?.content || "", "openai");
 }
 
-async function callGroq(prompt: string, input: GenerateCommentInput) {
+async function callGroq(prompt: string) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
-
-  const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Anda adalah asisten SEO etis. Balas hanya dengan JSON valid tanpa markdown."
-        },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.55
-    })
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+      messages: [{ role: "system", content: "Anda editor komentar SEO etis. Balas hanya dengan JSON valid." },
+        { role: "user", content: prompt }], temperature: 0.35,
+      response_format: { type: "json_object" } }),
+    signal: AbortSignal.timeout(25000)
   });
-
-  if (!response.ok) {
-    throw new Error(`Groq gagal: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Groq gagal (${response.status}).`);
   const payload = await response.json();
-  const content = payload.choices?.[0]?.message?.content || "{}";
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  const parsed = JSON.parse(jsonMatch?.[0] || content) as GeneratedCommentPayload;
-  return normalizeGeneratedComment(parsed, input);
+  return parseContent(payload.choices?.[0]?.message?.content || "", "groq");
 }
 
 export async function generateSeoComment(input: GenerateCommentInput) {
-  const inspected = await inspectPage(input.candidateUrl).catch(() => null);
-  const prompt = buildPrompt(input, inspected?.summary || "");
-
-  try {
-    const openAiResult = await callOpenAI(prompt, input);
-    if (openAiResult) return openAiResult;
-  } catch (error) {
-    console.error(error);
+  const prompt = buildPrompt(input);
+  const errors: string[] = [];
+  try { const result = await callOpenAI(prompt); if (result) return result; }
+  catch (error) { errors.push(error instanceof Error ? error.message : "OpenAI gagal."); }
+  try { const result = await callGroq(prompt); if (result) return result; }
+  catch (error) { errors.push(error instanceof Error ? error.message : "Groq gagal."); }
+  if (!process.env.OPENAI_API_KEY && !process.env.GROQ_API_KEY) {
+    throw new Error("OPENAI_API_KEY atau GROQ_API_KEY belum dikonfigurasi.");
   }
-
-  try {
-    const groqResult = await callGroq(prompt, input);
-    if (groqResult) return groqResult;
-  } catch (error) {
-    console.error(error);
-  }
-
-  return fallbackComment(input);
+  throw new Error(errors.join(" ") || "Provider AI tidak memberikan respons yang valid.");
 }

@@ -63,7 +63,7 @@ export function SearchForm() {
 
   return (
     <form onSubmit={onSubmit} className="card p-5">
-      <div className="grid gap-4 md:grid-cols-[1.3fr_0.9fr_1.2fr_auto]">
+      <div className="grid gap-4 md:grid-cols-[1.2fr_1.2fr_0.8fr_auto]">
         <label className="label">
           Keyword / topik
           <input className="input" name="keyword" placeholder="Contoh: data science" required />
@@ -71,7 +71,7 @@ export function SearchForm() {
 
         <div className="grid gap-1.5">
           <label className="text-sm font-bold text-slate-700" htmlFor="domainSearch">
-            Domain target
+          Filter domain kandidat <span className="font-normal text-muted">(opsional)</span>
           </label>
           <input
             className="input"
@@ -100,22 +100,22 @@ export function SearchForm() {
         </div>
 
         <label className="label">
-          Domain Telkom Surabaya
+          URL halaman yang dipromosikan
           <input
             className="input"
-            defaultValue="https://surabaya.telkomuniversity.ac.id"
             name="telkomBaseUrl"
-            placeholder="https://surabaya.telkomuniversity.ac.id"
+            placeholder="https://surabaya.telkomuniversity.ac.id/artikel-anda/"
             type="url"
+            required
           />
           <span className="text-xs font-normal text-muted">
-            Dipakai sebagai sumber artikel rekomendasi Telkom, bisa dikosongkan.
+            Isi halaman ini dipakai sebagai konteks agar rekomendasi dan komentar lebih relevan.
           </span>
         </label>
 
         <div className="flex items-end">
           <button className="btn-primary w-full" disabled={isLoading}>
-            {isLoading ? "Mencari..." : "Cari Kandidat"}
+            {isLoading ? "Menyiapkan..." : "Cari Cepat"}
           </button>
         </div>
       </div>

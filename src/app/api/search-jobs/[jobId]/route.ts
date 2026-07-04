@@ -12,11 +12,7 @@ export async function GET(
       project: {
         include: {
           candidates: {
-            where: {
-              hasCommentForm: true,
-              hasWebsiteField: true
-            },
-            orderBy: { createdAt: "desc" }
+            orderBy: [{ relevanceScore: "desc" }, { createdAt: "desc" }]
           }
         }
       }

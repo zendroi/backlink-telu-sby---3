@@ -22,6 +22,8 @@ type CandidateState = {
   title: string;
   url: string;
   domain: string;
+  inspectionStatus: string;
+  relevanceScore: number;
 };
 
 export function SearchProgress({ jobId }: { jobId: string }) {
@@ -63,6 +65,8 @@ export function SearchProgress({ jobId }: { jobId: string }) {
     );
   }
 
+  const reviewCount = Math.max(0, job.checkedCount - job.matchedCount - job.rejectedCount);
+
   return (
     <section className="card grid gap-5 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -80,18 +84,19 @@ export function SearchProgress({ jobId }: { jobId: string }) {
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <Metric label="URL ditemukan" value={job.totalFound} />
-        <Metric label={`Dicek / ${job.maxChecks}`} value={job.checkedCount} />
+        <Metric label={`Dicek / ${job.totalFound || "?"}`} value={job.checkedCount} />
         <Metric label={`Valid / target ${job.matchTarget}`} value={job.matchedCount} />
+        <Metric label="Perlu verifikasi" value={reviewCount} />
         <Metric label="Ditolak" value={job.rejectedCount} />
       </div>
 
       <div className="rounded-lg border border-line">
         <div className="border-b border-line bg-slate-50 px-4 py-3">
-          <h3 className="font-black">Kandidat valid live</h3>
+          <h3 className="font-black">Hasil ditemukan</h3>
           <p className="text-sm text-muted">
-            Hanya halaman yang punya form komentar dan field website yang muncul di sini.
+            Hasil muncul sejak ditemukan; status inspeksi diperbarui secara bertahap.
           </p>
         </div>
         <div className="grid gap-0">
@@ -105,6 +110,7 @@ export function SearchProgress({ jobId }: { jobId: string }) {
                   {candidate.title}
                 </Link>
                 <p className="mt-1 break-all text-sm text-muted">{candidate.url}</p>
+                <p className="mt-1 text-xs font-bold text-brand">{candidate.inspectionStatus} - skor {candidate.relevanceScore}</p>
               </div>
               <a className="btn-secondary" href={candidate.url} rel="noreferrer" target="_blank">
                 Buka Web
@@ -113,8 +119,7 @@ export function SearchProgress({ jobId }: { jobId: string }) {
           ))}
           {candidates.length === 0 && (
             <p className="p-4 text-sm text-muted">
-              Belum ada kandidat valid. Sistem sedang menolak halaman yang tidak punya form komentar
-              dan field website.
+              Search API sedang mengumpulkan kandidat.
             </p>
           )}
         </div>

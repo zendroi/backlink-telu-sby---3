@@ -7,11 +7,11 @@ Surabaya yang relevan, lalu membuat draft komentar yang sopan dan tidak spam.
 ## Fitur
 
 - Halaman utama untuk input keyword, domain target, dan URL website user
-- Search kandidat website menggunakan Serper
+- Search kandidat website menggunakan Serper dengan pemeriksaan paralel
 - Cek otomatis apakah halaman punya form komentar dan field website/url
 - Tabel kandidat dengan status `belum dicek`, `cocok`, dan `tidak cocok`
 - Halaman detail kandidat dengan catatan manual
-- Pencarian artikel Telkom University Surabaya yang relevan
+- Pencarian artikel Telkom University Surabaya dengan validasi domain dan skor relevansi
 - Generate komentar AI dengan OpenAI
 - Riwayat komentar
 
@@ -27,7 +27,7 @@ jangan keyword stuffing, dan ikuti aturan website tujuan.
 npm install
 copy .env.example .env
 npx prisma generate
-npm run db:init
+npx prisma db push
 npm run dev
 ```
 
@@ -43,8 +43,11 @@ Isi `.env`:
 DATABASE_URL="file:./dev.db"
 SERPER_API_KEY="..."
 SEARCH_RESULTS_PER_QUERY=10
-SEARCH_MAX_CHECKS=100
-SEARCH_MATCH_TARGET=40
+SEARCH_MAX_CHECKS=40
+SEARCH_MATCH_TARGET=15
+SEARCH_CONCURRENCY=5
+PAGE_INSPECTION_TIMEOUT_MS=8000
+PAGE_MAX_BYTES=5000000
 OPENAI_API_KEY="..."
 OPENAI_MODEL="gpt-4.1-mini"
 ```
@@ -75,9 +78,8 @@ Aturan utamanya:
 
 ## TODO Lanjutan
 
-- Tambahkan progress realtime saat search berjalan lama
 - Tambahkan provider Tavily/SerpAPI sebagai opsi selain Serper
 - Tambahkan auth multi-user
 - Tambahkan export CSV hasil kandidat dan komentar
-- Tambahkan scheduler untuk re-check kandidat
-- Tambahkan scoring kualitas kandidat
+- Pindahkan background search ke worker queue sebelum deploy serverless
+- Tambahkan tombol re-check kandidat dan cancel job

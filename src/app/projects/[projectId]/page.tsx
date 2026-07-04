@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CandidateTable } from "@/components/candidate-table";
 import { SearchProgress } from "@/components/search-progress";
+import { RerunSearchButton } from "@/components/rerun-search-button";
 import { AppShell } from "@/components/shell";
 import { prisma } from "@/lib/prisma";
 
@@ -20,19 +21,24 @@ export default async function ProjectPage({
     where: { id },
     include: {
       candidates: {
-        where: {
-          hasCommentForm: true,
-          hasWebsiteField: true
-        },
-        orderBy: [{ hasWebsiteField: "desc" }, { hasCommentForm: "desc" }, { createdAt: "desc" }]
+        orderBy: [{ relevanceScore: "desc" }, { createdAt: "desc" }]
       },
       articles: {
-        orderBy: { createdAt: "desc" }
+        orderBy: { relevanceScore: "desc" }
       }
     }
   });
 
   if (!project) notFound();
+
+  const latestJob = jobId
+    ? await prisma.searchJob.findFirst({
+        where: { projectId: id },
+        orderBy: { createdAt: "desc" },
+        select: { id: true }
+      })
+    : null;
+  const displayedJobId = latestJob?.id || jobId;
 
   const matched = project.candidates.filter(
     (candidate) => candidate.hasCommentForm && candidate.hasWebsiteField
@@ -49,11 +55,15 @@ export default async function ProjectPage({
               Domain target: {project.targetDomain || "tanpa domain"} · Sumber artikel:{" "}
               Universitas Telkom Surabaya
             </p>
+            <a className="mt-1 block break-all text-sm text-brand" href={project.userWebsiteUrl} target="_blank">
+              Halaman yang dipromosikan: {project.userWebsiteTitle || project.userWebsiteUrl}
+            </a>
           </div>
+          <div className="grid gap-3">
           <div className="card grid grid-cols-3 gap-4 p-4 text-center">
             <div>
               <strong className="block text-2xl">{project.candidates.length}</strong>
-              <span className="text-xs text-muted">Kandidat</span>
+              <span className="text-xs text-muted">Hasil ditemukan</span>
             </div>
             <div>
               <strong className="block text-2xl">{matched}</strong>
@@ -64,12 +74,14 @@ export default async function ProjectPage({
               <span className="text-xs text-muted">Artikel Telkom</span>
             </div>
           </div>
+          <RerunSearchButton projectId={project.id} />
+          </div>
         </section>
 
-        {jobId && <SearchProgress jobId={jobId} />}
+        {displayedJobId && <SearchProgress jobId={displayedJobId} />}
 
         <section className="grid gap-3">
-          <h2 className="text-xl font-black">Kandidat website</h2>
+          <h2 className="text-xl font-black">Hasil pemeriksaan kandidat</h2>
           <CandidateTable candidates={project.candidates} />
         </section>
 
@@ -85,6 +97,7 @@ export default async function ProjectPage({
                 <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-muted">
                   {article.relevanceReason}
                 </p>
+                <p className="mt-2 text-xs font-bold text-brand">Skor relevansi: {article.relevanceScore}/100</p>
               </article>
             ))}
             {project.articles.length === 0 && (

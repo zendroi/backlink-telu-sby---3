@@ -11,6 +11,9 @@ type CandidateRow = {
   status: string;
   hasCommentForm: boolean;
   hasWebsiteField: boolean;
+  inspectionStatus: string;
+  relevanceScore: number;
+  inspectionReason: string | null;
 };
 
 export function LatestResultsPanel({

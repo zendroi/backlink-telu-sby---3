@@ -20,26 +20,15 @@ const CreateProjectSchema = z.object({
   ),
   userWebsiteUrl: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
-    z.string()
+    z.string().url("URL website harus valid.")
   )
 });
-
-const DEFAULT_TELKOM_URL = "https://surabaya.telkomuniversity.ac.id";
 
 function resolveTargetDomain(targetDomain: string, customDomain?: string) {
   if (targetDomain === "custom") {
     return normalizeDomain(customDomain || "");
   }
   return normalizeDomain(targetDomain);
-}
-
-function resolveTelkomBaseUrl(input: string) {
-  if (!input) return DEFAULT_TELKOM_URL;
-  try {
-    return new URL(input).toString().replace(/\/$/, "");
-  } catch {
-    return DEFAULT_TELKOM_URL;
-  }
 }
 
 export async function GET() {
@@ -75,14 +64,12 @@ export async function POST(request: Request) {
     parsed.data.targetDomain,
     parsed.data.customDomain
   );
-  const telkomBaseUrl = resolveTelkomBaseUrl(parsed.data.userWebsiteUrl);
-
   const project = await prisma.searchProject.create({
     data: {
       userId: user.id,
       keyword: parsed.data.keyword,
       targetDomain,
-      userWebsiteUrl: telkomBaseUrl
+      userWebsiteUrl: new URL(parsed.data.userWebsiteUrl).toString()
     }
   });
 
